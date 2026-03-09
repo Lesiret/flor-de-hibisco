@@ -1,0 +1,104 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flor de Hibisco | Boutique Mística</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Dancing+Script:wght@400..700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --brand-rose: #C082A0;
+        --brand-rose-dark: #A66B88;
+        --neutral-white: #FFFFFF;
+        --neutral-offwhite: #FAF9F6;
+        --deep-charcoal: #1A1518;
+        --accent-gold: #B88E2F;
+      }
+      body {
+        font-family: 'Montserrat', sans-serif;
+        background-color: var(--neutral-white);
+        color: var(--deep-charcoal);
+        overflow-x: hidden;
+      }
+      h1, h2, h3, .font-cinzel {
+        font-family: 'Cinzel', serif;
+        letter-spacing: 0.15em;
+      }
+      .font-playfair {
+        font-family: 'Playfair Display', serif;
+      }
+      .font-handwritten {
+        font-family: 'Dancing Script', cursive;
+      }
+      .bg-brand-rose { background-color: var(--brand-rose); }
+      .text-brand-rose { color: var(--brand-rose); }
+      .border-brand-rose { border-color: var(--brand-rose); }
+      
+      /* Glassmorphism sutil */
+      .glass-nav {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+
+      /* Transições suaves */
+      .smooth-hover {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      /* Sombras de boutique */
+      .shadow-premium {
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+      }
+      .shadow-premium-hover:hover {
+        box-shadow: 0 20px 40px -15px rgba(192, 130, 160, 0.15);
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade {
+        animation: fadeIn 0.8s ease-out forwards;
+      }
+
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+      .animate-shake {
+        animation: shake 0.4s ease-in-out;
+      }
+
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #C082A0;
+        border-radius: 10px;
+      }
+    </style>
+    <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.95.3"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
