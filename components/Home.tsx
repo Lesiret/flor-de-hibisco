@@ -12,16 +12,16 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
 
   // URLs das imagens para Desktop
   const desktopImages = [
-    "https://lh3.googleusercontent.com/d/1PZDQFLPkJw2WBa6h1yY75HCLGgXitzvA",
-    "https://lh3.googleusercontent.com/d/1NzAyKLAKvzh0OUHFRBoX_6DKx5_AQ8D6",
-    "https://lh3.googleusercontent.com/d/11JXEafX6tWBKiRhr6emelQS2IaxjMv7A"
+  "/images/carrossel.png",
+  "/images/carrossel2.png",
+  "/images/carrossel3.png"
   ];
 
   // URLs das imagens para Mobile
   const mobileImages = [
-    "https://lh3.googleusercontent.com/d/1epUrEpcGmd7HpBxcKotOxbQl3y0ybDYl",
-    "https://lh3.googleusercontent.com/d/1vG3gs9lFvkwE0xAZTKZJoYCSUDdt9t-5",
-    "https://lh3.googleusercontent.com/d/1ooXTRiUoiNjMGxqD4XKevN1JY1ee6wB5"
+  "/images/carrosselCEL1.png",
+  "/images/carrosselCEL2.png",
+  "/images/carrosselCEL3.png"
   ];
 
   const [isMobile, setIsMobile] = useState(false);
@@ -58,9 +58,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           >
             {/* object-cover no mobile para legibilidade, object-contain no desktop para evitar cortes na arte horizontal */}
             <img 
-              src={`${img}=s2048`} 
+              src={img} 
               className="w-full h-full object-cover md:object-contain object-center image-render-quality" 
               alt={`Arte Sagrada ${idx + 1}`} 
+              referrerPolicy="no-referrer"
             />
           </div>
         ))}
@@ -111,7 +112,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           className="group relative h-[400px] md:h-[500px] overflow-hidden cursor-pointer shadow-2xl rounded-[2rem] md:rounded-[2.5rem]"
         >
           <img 
-            src="https://lh3.googleusercontent.com/d/1Jlaf26XG6m6BVOJpsvBcyYIjYu2D-DVH" 
+            src="/images/meio1.jpg" 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2.5s]" 
             alt="Óleos de Intenção"
           />
@@ -131,7 +132,7 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           className="group relative h-[400px] md:h-[500px] overflow-hidden cursor-pointer shadow-2xl rounded-[2rem] md:rounded-[2.5rem]"
         >
           <img 
-            src="https://lh3.googleusercontent.com/d/1zGNt84YXeeSqjoLBuIoXheqJ1Zyazh1-" 
+            src="/images/meio2.jpg" 
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[2.5s]" 
             alt="Banhos Energéticos"
           />
@@ -150,9 +151,10 @@ const Home: React.FC<HomeProps> = ({ onNavigate }) => {
       {/* Large Final Banner */}
       <section className="relative h-[500px] md:h-[600px] w-full mt-4 md:mt-8 overflow-hidden cursor-pointer group" onClick={() => onNavigate('about')}>
         <img 
-          src="https://lh3.googleusercontent.com/d/1wQnyGNCGD3yA_DKLZdRrhi_TLYDX8hnB" 
+          src="/images/logo.png" 
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[6s]" 
           alt="Essência da flor"
+          referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-[#1A1518]/60 backdrop-blur-[1px] group-hover:backdrop-blur-0 transition-all duration-1000" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 md:p-8">

@@ -161,7 +161,7 @@ const Account: React.FC<AccountProps> = ({
             <div className="flex items-center space-x-4 mb-6">
               <div className="w-16 h-16 rounded-full bg-[#C082A0]/10 flex items-center justify-center text-[#C082A0] overflow-hidden">
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <UserIcon className="w-8 h-8" />
                 )}
@@ -248,7 +248,7 @@ const Account: React.FC<AccountProps> = ({
                         <div className="flex items-center space-x-6">
                           <div className="w-20 h-20 rounded-full bg-[#FAF9F6] border border-stone-100 overflow-hidden relative group/avatar">
                             {profileForm.avatarUrl ? (
-                              <img src={profileForm.avatarUrl} className="w-full h-full object-cover" alt="Avatar Preview" />
+                              <img src={profileForm.avatarUrl} className="w-full h-full object-cover" alt="Avatar Preview" referrerPolicy="no-referrer" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-stone-200">
                                 <UserIcon className="w-8 h-8" />
@@ -521,7 +521,7 @@ const Account: React.FC<AccountProps> = ({
                           {selectedOrder.items.map((item, idx) => (
                             <div key={idx} className="flex items-center space-x-4">
                               <div className="w-12 h-16 bg-white rounded-lg overflow-hidden border border-stone-100">
-                                <img src={item.image} className="w-full h-full object-cover" alt={item.name} />
+                                <img src={item.image} className="w-full h-full object-cover" alt={item.name} referrerPolicy="no-referrer" />
                               </div>
                               <div className="flex-1">
                                 <p className="text-[10px] font-bold uppercase tracking-widest text-[#1A1518]">{item.name}</p>
@@ -625,7 +625,7 @@ const Account: React.FC<AccountProps> = ({
                   {wishlistProducts.map((product) => (
                     <div key={product.id} className="group bg-[#FAF9F6] rounded-[2rem] overflow-hidden border border-stone-50 hover:border-[#C082A0]/20 transition-all">
                       <div className="aspect-[3/4] relative overflow-hidden">
-                        <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
+                        <img src={product.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} referrerPolicy="no-referrer" />
                         <button 
                           onClick={() => onToggleWishlist(product.id)}
                           className="absolute top-4 right-4 p-3 bg-white/80 backdrop-blur-md rounded-full text-[#C082A0] shadow-lg"

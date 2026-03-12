@@ -188,7 +188,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                     <tr key={p.id} className="hover:bg-stone-50/50 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex items-center space-x-4">
-                          <img src={p.image} className="w-12 h-12 rounded-xl object-cover shadow-sm group-hover:scale-110 transition-transform" />
+                          <img src={p.image} className="w-12 h-12 rounded-xl object-cover shadow-sm group-hover:scale-110 transition-transform" referrerPolicy="no-referrer"/>
                           <span className="font-cinzel font-bold text-sm text-[#1A1518]">{p.name}</span>
                         </div>
                       </td>
@@ -328,7 +328,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                     </label>
                     <div className="aspect-[3/4] rounded-[2.5rem] bg-[#FAF9F6] overflow-hidden relative border border-stone-100 shadow-inner group/img">
                       {currentProduct.image ? (
-                        <img src={currentProduct.image} className="w-full h-full object-cover" alt="Preview" />
+                        <img src={currentProduct.image} className="w-full h-full object-cover" alt="Preview" referrerPolicy="no-referrer"/>
                       ) : (
                         <div className="w-full h-full flex flex-col items-center justify-center text-stone-300 space-y-4">
                           <ImageIcon className="w-16 h-16 opacity-10" />
@@ -360,7 +360,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
 
                   <div className="p-6 bg-[#1A1518] rounded-[2rem] text-white flex items-center space-x-6 shadow-xl">
                     <div className="w-16 h-20 rounded-lg bg-stone-800 overflow-hidden flex-shrink-0">
-                      {currentProduct.image && <img src={currentProduct.image} className="w-full h-full object-cover" />}
+                      {currentProduct.image && <img src={currentProduct.image} className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
                     </div>
                     <div className="space-y-1">
                       <p className="font-cinzel font-bold text-xs truncate max-w-[180px]">{currentProduct.name || 'Nome do Produto'}</p>

@@ -9,8 +9,8 @@ interface LogoProps {
 }
 
 // URLs das imagens (Convertidas para link direto do Google Drive)
-const LOGO_URL = "https://lh3.googleusercontent.com/d/1_q9GD-BjZmXaqDAQ9yaguxsHwdc_M-fO";
-const ICON_URL = "https://lh3.googleusercontent.com/d/1mHtq5EoFMVd1IxzpoSf5-j1CnGbZgMlZ";
+const LOGO_URL = "https://drive.google.com/uc?id=1_q9GD-BjZmXaqDAQ9yaguxsHwdc_M-fO";
+const ICON_URL = "/images/logonavfooter.jpg";
 
 export const Logo = ({ size = "lg", variant = "full" }: LogoProps) => {
   // Ajuste de tamanho responsivo para a logo principal
@@ -25,6 +25,7 @@ export const Logo = ({ size = "lg", variant = "full" }: LogoProps) => {
               src={ICON_URL} 
               alt="Ícone Flor de Hibisco" 
               className="w-full h-full object-cover transform scale-[1.8] group-hover:scale-[2] transition-transform duration-500" 
+              referrerPolicy="no-referrer"
            />
         </div>
         {variant === "text" && (
@@ -43,6 +44,7 @@ export const Logo = ({ size = "lg", variant = "full" }: LogoProps) => {
           src={LOGO_URL} 
           alt="Logo Flor de Hibisco Principal" 
           className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
         />
       </div>
       
@@ -73,7 +75,7 @@ export const PRODUCTS: Product[] = [
     name: 'Óleos de Condição',
     price: 210.00,
     category: 'Óleos',
-    image: 'https://lh3.googleusercontent.com/d/1Jlaf26XG6m6BVOJpsvBcyYIjYu2D-DVH',
+    image: 'https://drive.google.com/uc?id=1Jlaf26XG6m6BVOJpsvBcyYIjYu2D-DVH',
     description: 'Alquimias potentes para atrair prosperidade, saúde e abertura de caminhos.',
     weight: 0.4, width: 8, height: 15, length: 8
   }

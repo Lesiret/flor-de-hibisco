@@ -21,9 +21,10 @@ const SocialLinks: React.FC = () => {
           <div className="relative w-32 h-32 mx-auto mb-8">
             <div className="w-full h-full rounded-full border border-[#C082A0]/20 p-2 bg-white shadow-xl overflow-hidden">
               <img 
-                src="https://lh3.googleusercontent.com/d/1eu4FdGrynIqu7yZmsjvx_jJ_RYALf7xt" 
+                src="/images/social.jpg" 
                 alt="Flor de Hibisco Profile" 
                 className="w-full h-full rounded-full object-cover scale-[1.2]"
+                referrerPolicy="no-referrer"
               />
             </div>
             <div className="absolute -bottom-1 -right-1 bg-white p-2 rounded-full shadow-md text-[#C082A0]">

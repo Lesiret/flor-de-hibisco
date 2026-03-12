@@ -65,18 +65,24 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
         value: subtotal
       };
 
-      const response = await fetch('/api/shipping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+const response = await fetch('/api/shipping', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    from: payload.from,
+    to: payload.to,
+    value: payload.value
+  })
+});
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao calcular frete");
-      }
+if (!response.ok) {
+  const text = await response.text();
+  throw new Error(`Erro no servidor de frete: ${text}`);
+}
 
-      const data = await response.json();
+const data = await response.json();
 
       const validOptions: ShippingOption[] = data.map((opt: any) => ({
         id: String(opt.id),
@@ -163,7 +169,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
               items.map((item) => (
                 <div key={item.id} className="flex space-x-6 group">
                   <div className="w-20 h-28 bg-stone-50 rounded-xl overflow-hidden shadow-sm border border-stone-100">
-                    <img src={item.image} className="w-full h-full object-cover" alt={item.name} />
+                    <img src={item.image} className="w-full h-full object-cover" alt={item.name} referrerPolicy="no-referrer" />
                   </div>
                   <div className="flex-1 flex flex-col justify-between py-1">
                     <div className="flex justify-between">

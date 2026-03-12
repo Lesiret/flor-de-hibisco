@@ -17,9 +17,10 @@ const About: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
           <div className="relative group overflow-hidden shadow-2xl bg-[#FAF9F6] border border-stone-50 rounded-[2rem] md:rounded-[3rem]">
             <img 
-              src="https://lh3.googleusercontent.com/d/1VKlBbrDJ_vM0yFEgT0A7TyATsdSqTXQh" 
+              src="/images/sobre.png" 
               alt="Essência Flor de Hibisco Oficial" 
               className="w-full h-[700px] object-cover smooth-hover group-hover:scale-105"
+              referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-[#C082A0]/5 group-hover:bg-transparent transition-colors pointer-events-none" />
           </div>

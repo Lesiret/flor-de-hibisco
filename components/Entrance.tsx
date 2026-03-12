@@ -26,9 +26,10 @@ const Entrance: React.FC<EntranceProps> = ({ onSelect }) => {
             className="group relative h-[380px] sm:h-[450px] md:h-[580px] bg-[#1A1518] cursor-pointer overflow-hidden rounded-[2rem] md:rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-2 transition-all duration-700"
           >
             <img 
-              src="https://lh3.googleusercontent.com/d/1tyHf996h30eGvHtPwdjDgekODGusudLW" 
+              src="/images/entrada1.jpg" 
               className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-110 group-hover:opacity-90 transition-all duration-[3s]"
               alt="Flor de Hibisco"
+              referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1518] via-transparent to-transparent opacity-90" />
             
@@ -50,9 +51,10 @@ const Entrance: React.FC<EntranceProps> = ({ onSelect }) => {
             className="group relative h-[380px] sm:h-[450px] md:h-[580px] bg-[#1A1518] cursor-pointer overflow-hidden rounded-[2rem] md:rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)] hover:-translate-y-2 transition-all duration-700"
           >
             <img 
-              src="https://lh3.googleusercontent.com/d/1eGNhgXHba8xoV8jmilcfZrY9H5FqSpGL" 
+              src="/images/entrada2.jpg" 
               className="absolute inset-0 w-full h-full object-cover opacity-75 group-hover:scale-110 group-hover:opacity-90 transition-all duration-[3s]"
               alt="Contato e Redes Sociais"
+              referrerPolicy="no-referrer"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#1A1518] via-transparent to-transparent opacity-90" />
             
