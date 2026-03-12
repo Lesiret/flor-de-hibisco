@@ -82,9 +82,12 @@ if (!response.ok) {
   throw new Error(`Erro no servidor de frete: ${text}`);
 }
 
-const data = await response.json();
+const text = await response.text();
+console.log("Resposta da API:", text);
 
-      const validOptions: ShippingOption[] = data.map((opt: any) => ({
+const data = JSON.parse(text);
+
+      const validOptions: ShippingOption[] = data.options.map((opt: any) => ({
         id: String(opt.id),
         company: opt.company,
         name: opt.name,
