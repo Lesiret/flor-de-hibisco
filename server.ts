@@ -85,6 +85,12 @@ async function startServer() {
       const meToken = process.env.MELHOR_ENVIO_TOKEN;
       
       const { from, to, value } = req.body;
+
+      // valida se CEP foi enviado
+        if (!from || !to) {
+          return res.status(400).json({ error: "CEP obrigatório" });
+        }
+
       const cleanFrom = from.replace(/\D/g, "");
       const cleanTo = to.replace(/\D/g, "");
 
@@ -110,6 +116,7 @@ async function startServer() {
             quantity: 1
           }
         ],
+        services: "1,2,3,4,12,17",
         options: {
           receipt: false,
           own_hand: false
@@ -134,11 +141,24 @@ async function startServer() {
         .filter((service: any) => !service.error && service.price)
         .map((service: any) => ({
           id: String(service.id),
-          company: { name: service.company?.name || "Transportadora" },
+          company: service.company?.name || "Transportadora",
           name: service.name,
           price: Number(service.price),
           delivery_time: service.delivery_time
         }));
+
+        // fallback caso nenhuma transportadora retorne
+        if (result.length === 0) {
+          return res.json([
+            {
+              id: "fallback",
+              company: { name: "Entrega padrão" },
+              name: "PAC",
+              price: 19.9,
+              delivery_time: 7
+            }
+          ]);
+        }
 
       console.log("MELHOR ENVIO RESPONSE:", result.length, "serviços");
       res.json(result);

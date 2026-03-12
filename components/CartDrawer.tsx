@@ -86,7 +86,7 @@ const data = await response.json();
 
       const validOptions: ShippingOption[] = data.map((opt: any) => ({
         id: String(opt.id),
-        company: opt.company.name || opt.company,
+        company: opt.company,
         name: opt.name,
         price: Number(opt.price) + (shippingConfig.flatRate || 0),
         delivery_time: opt.delivery_time
