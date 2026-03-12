@@ -115,9 +115,14 @@ const data = await response.json();
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          items: items,
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
           shippingCost: finalShippingCost,
-          customerEmail: 'cliente@exemplo.com' // Idealmente pegar do login
+          customerEmail: 'cliente@exemplo.com'
         })
       });
 
