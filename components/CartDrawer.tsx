@@ -92,7 +92,7 @@ const validOptions: ShippingOption[] = Array.isArray(data)
       id: String(opt.id),
       company: opt.company,
       name: opt.name,
-      price: Number(opt.price) + (shippingConfig.flatRate || 0),
+      price: Number(opt.price),
       delivery_time: opt.delivery_time
     }))
   : [];

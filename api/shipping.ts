@@ -32,15 +32,15 @@ export default async function handler(req: any, res: any) {
       products: [
         {
           id: "p1",
-          width: 15,
-          height: 7,
+          width: 16,
+          height: 8,
           length: 23,
-          weight: 0.5,
+          weight: 1,
           insurance_value: Number(value || 0),
           quantity: 1
         }
       ],
-      services: "1,2,3,4,12,17",
+      services: "1,2,12",
       options: { receipt: false, own_hand: false }
     };
 
