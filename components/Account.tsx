@@ -528,7 +528,7 @@ const Account: React.FC<AccountProps> = ({
                       <div className="space-y-6">
                         <h4 className="font-cinzel font-bold text-xs uppercase tracking-[0.3em] text-stone-400 border-b border-stone-200 pb-4">Itens</h4>
                         <div className="space-y-4">
-                          {selectedOrder.items.map((item, idx) => (
+                          {selectedOrder.products.map((item, idx) => (
                             <div key={idx} className="flex items-center space-x-4">
                               <div className="w-12 h-16 bg-white rounded-lg overflow-hidden border border-stone-100">
                                 <img src={item.image} className="w-full h-full object-cover" alt={item.name} referrerPolicy="no-referrer" />
