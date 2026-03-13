@@ -87,13 +87,15 @@ console.log("Resposta da API:", text);
 
 const data = JSON.parse(text);
 
-      const validOptions: ShippingOption[] = data.options.map((opt: any) => ({
-        id: String(opt.id),
-        company: opt.company,
-        name: opt.name,
-        price: Number(opt.price) + (shippingConfig.flatRate || 0),
-        delivery_time: opt.delivery_time
-      }));
+const validOptions: ShippingOption[] = Array.isArray(data) 
+  ? data.map((opt: any) => ({
+      id: String(opt.id),
+      company: opt.company,
+      name: opt.name,
+      price: Number(opt.price) + (shippingConfig.flatRate || 0),
+      delivery_time: opt.delivery_time
+    }))
+  : [];
 
       if (validOptions.length === 0) {
         setError("Nenhuma transportadora disponível para este CEP.");
