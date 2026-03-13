@@ -65,12 +65,12 @@ export interface Address {
 
 export interface Order {
   id: string;
-  date: string;
-  items: CartItem[];
+  user_id: string; // necessário para filtrar pedidos do usuário
   total: number;
   status: 'Pagamento em análise' | 'Pagamento aprovado' | 'Aguardando envio' | 'Produto enviado' | 'Entregue' | 'Cancelado';
-  trackingCode?: string;
-  paymentMethod: string;
+  tracking_code?: string;
+  payment_method: string;
+  created_at: string; // usamos esse campo como data do pedido
 }
 
 export interface SocialLink {

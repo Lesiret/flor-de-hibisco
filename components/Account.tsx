@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   User as UserIcon, Package, MapPin, Shield, Heart, 
@@ -8,6 +7,7 @@ import {
 import { User, Order, Address, Product, ViewState } from '../types';
 import { PRODUCTS } from '../constants';
 import { uploadImage } from '../lib/storage';
+import { supabase } from '../lib/supabase';
 
 interface AccountProps {
   user: User;
@@ -33,6 +33,16 @@ const Account: React.FC<AccountProps> = ({
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [localOrders, setLocalOrders] = useState<Order[]>([]);
+  React.useEffect(() => {
+  // Mapeia os orders recebidos via props para incluir tracking_code
+  const mapped = orders.map(o => ({
+    ...o,
+    tracking_code: o.tracking_code || '' 
+  }));
+  setLocalOrders(mapped);
+}, [orders]);
+
   const [addressForm, setAddressForm] = useState<Partial<Address>>({
     name: '',
     zipCode: '',
@@ -288,7 +298,7 @@ const Account: React.FC<AccountProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-8 bg-[#FAF9F6] rounded-[2rem] border border-stone-50 group hover:border-[#C082A0]/20 transition-colors">
                   <Package className="w-6 h-6 text-[#C082A0] mb-4" />
-                  <p className="text-3xl font-cinzel font-bold text-[#1A1518]">{orders.length}</p>
+                  <p className="text-3xl font-cinzel font-bold text-[#1A1518]">{localOrders.length}</p>
                   <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">Pedidos</p>
                 </div>
                 <div className="p-8 bg-[#FAF9F6] rounded-[2rem] border border-stone-50 group hover:border-[#C082A0]/20 transition-colors">
@@ -305,19 +315,19 @@ const Account: React.FC<AccountProps> = ({
 
               <div className="space-y-6">
                 <h3 className="font-cinzel font-bold text-xs uppercase tracking-[0.4em] border-b border-stone-50 pb-4">Acompanhamento</h3>
-                {orders.length > 0 ? (
+                {localOrders.length > 0 ? (
                   <div className="p-8 bg-[#FAF9F6] rounded-[2rem] flex flex-col md:flex-row items-center justify-between border border-stone-50">
                     <div className="flex items-center space-x-6">
                       <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm">
                         <Package className="w-6 h-6 text-stone-200" />
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-stone-300">#{orders[0].id}</p>
-                        <p className="font-cinzel font-bold text-[#1A1518]">R$ {orders[0].total.toFixed(2)}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-stone-300">#{localOrders[0].id}</p>
+                        <p className="font-cinzel font-bold text-[#1A1518]">R$ {localOrders[0].total.toFixed(2)}</p>
                       </div>
                     </div>
-                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest mt-4 md:mt-0 ${getStatusColor(orders[0].status)}`}>
-                      {orders[0].status}
+                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest mt-4 md:mt-0 ${getStatusColor(localOrders[0].status)}`}>
+                      {localOrders[0].status}
                     </span>
                   </div>
                 ) : (
@@ -504,10 +514,10 @@ const Account: React.FC<AccountProps> = ({
                         <span className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusColor(selectedOrder.status)}`}>
                           {selectedOrder.status}
                         </span>
-                        {selectedOrder.status === 'Produto enviado' && (
+                        {selectedOrder.status === 'Produto enviado' && selectedOrder.tracking_code && (
                           <div className="flex flex-col items-end space-y-2">
                             <p className="text-[10px] font-bold text-[#C082A0] mt-3 uppercase tracking-widest italic">
-                              CÓDIGO ENVIADO POR EMAIL
+                              Código de rastreio: {selectedOrder.tracking_code}
                             </p>
                           </div>
                         )}
@@ -572,9 +582,9 @@ const Account: React.FC<AccountProps> = ({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {orders.length > 0 ? (
+                  {localOrders.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
-                      {orders.map((order) => (
+                      {localOrders.map((order) => (
                         <button 
                           key={order.id}
                           onClick={() => setSelectedOrder(order)}
@@ -587,7 +597,7 @@ const Account: React.FC<AccountProps> = ({
                             <div className="text-left">
                               <p className="text-[9px] font-bold uppercase tracking-widest text-stone-300">#{order.id}</p>
                               <p className="font-cinzel font-bold text-[#1A1518]">R$ {order.total.toFixed(2)}</p>
-                              <p className="text-[9px] text-stone-400 uppercase tracking-widest mt-1">{new Date(order.date).toLocaleDateString('pt-BR')}</p>
+                              <p className="text-[9px] text-stone-400 uppercase tracking-widest mt-1">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-6 mt-4 md:mt-0">
