@@ -7,30 +7,23 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-
     const { from, to, value } = req.body;
 
     if (!from || !to) {
-      return res.status(400).json({
-        error: "CEP obrigatório"
-      });
+      return res.status(400).json({ error: "CEP obrigatório" });
     }
 
     const cleanFrom = from.replace(/\D/g, "");
     const cleanTo = to.replace(/\D/g, "");
 
     if (cleanFrom.length !== 8 || cleanTo.length !== 8) {
-      return res.status(400).json({
-        error: "CEP inválido"
-      });
+      return res.status(400).json({ error: "CEP inválido" });
     }
 
     const token = process.env.MELHOR_ENVIO_TOKEN;
 
     if (!token) {
-      return res.status(500).json({
-        error: "Token Melhor Envio não configurado"
-      });
+      return res.status(500).json({ error: "Token Melhor Envio não configurado" });
     }
 
     const payload = {
@@ -48,10 +41,7 @@ export default async function handler(req: any, res: any) {
         }
       ],
       services: "1,2,3,4,12,17",
-      options: {
-        receipt: false,
-        own_hand: false
-      }
+      options: { receipt: false, own_hand: false }
     };
 
     const response = await axios.post(
@@ -68,7 +58,11 @@ export default async function handler(req: any, res: any) {
       }
     );
 
-    const result = response.data
+    // Garantir que response.data seja sempre array
+    const data = Array.isArray(response.data) ? response.data : [];
+    console.log("Melhor Envio Data:", data);
+
+    const result = data
       .filter((service: any) => !service.error && service.price)
       .map((service: any) => ({
         id: String(service.id),
@@ -78,9 +72,8 @@ export default async function handler(req: any, res: any) {
         delivery_time: service.delivery_time
       }));
 
-    // fallback caso nenhuma transportadora retorne
+    // Fallback caso nenhuma transportadora retorne
     if (result.length === 0) {
-
       return res.status(200).json([
         {
           id: "fallback",
@@ -90,20 +83,16 @@ export default async function handler(req: any, res: any) {
           delivery_time: 7
         }
       ]);
-
     }
 
     return res.status(200).json(result);
 
   } catch (error: any) {
-
     console.error("Erro Melhor Envio:", error.response?.data || error.message);
-
     return res.status(500).json({
       error: "Erro ao calcular frete",
       details: error.response?.data || error.message
     });
-
   }
 
 }
