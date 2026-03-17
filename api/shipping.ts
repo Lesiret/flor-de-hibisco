@@ -43,6 +43,10 @@ export default async function handler(req: any, res: any) {
     }
 
     const productMap: any = {};
+    if (!products || products.length === 0) {
+      throw new Error("Produtos não encontrados no banco");
+    }
+
     products.forEach((p: any) => {
       productMap[p.id] = p;
     });
@@ -138,12 +142,14 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json(result);
 
-  } catch (error: any) {
-    console.error("Erro Melhor Envio:", error.response?.data || error.message);
-    return res.status(500).json({
-      error: "Erro ao calcular frete",
-      details: error.response?.data || error.message
-    });
-  }
+    } catch (error: any) {
+      console.error("Erro COMPLETO:", error);
+      console.error("Resposta API:", error.response?.data);
+
+      return res.status(500).json({
+        error: "Erro ao calcular frete",
+        details: error.response?.data || error.message
+      });
+    }
 
 }
