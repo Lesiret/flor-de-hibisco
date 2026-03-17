@@ -8,6 +8,9 @@ import { User, Order, Address, Product, ViewState } from '../types';
 import { PRODUCTS } from '../constants';
 import { uploadImage } from '../lib/storage';
 import { supabase } from '../lib/supabase';
+import { RealtimeChannel } from '@supabase/supabase-js';
+
+
 
 interface AccountProps {
   user: User;
@@ -34,14 +37,49 @@ const Account: React.FC<AccountProps> = ({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [localOrders, setLocalOrders] = useState<Order[]>([]);
+  const [ordersSubscription, setOrdersSubscription] = useState<RealtimeChannel | null>(null);  
+  
   React.useEffect(() => {
-  // Mapeia os orders recebidos via props para incluir tracking_code
-  const mapped = orders.map(o => ({
-    ...o,
-    tracking_code: o.tracking_code || '' 
-  }));
-  setLocalOrders(mapped);
-}, [orders]);
+    // Popula inicialmente os pedidos
+    const mapped = orders.map(o => ({
+      ...o,
+      tracking_code: o.tracking_code || ''
+    }));
+    setLocalOrders(mapped);
+
+    // Configura Realtime
+    const subscription = supabase
+      .channel('public:orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newOrder = payload.new as Order;
+          setLocalOrders(prev => {
+            const updated = [...prev];
+            const index = updated.findIndex(o => o.id === newOrder.id);
+
+            if (payload.eventType === 'INSERT') {
+              updated.unshift(newOrder);
+            } else if (payload.eventType === 'UPDATE' && index !== -1) {
+              updated[index] = newOrder;
+            } else if (payload.eventType === 'DELETE' && index !== -1) {
+              updated.splice(index, 1);
+            }
+
+            return updated;
+          });
+        }
+      )
+      .subscribe();
+
+    setOrdersSubscription(subscription);
+
+    // Cleanup
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []); 
 
   const [addressForm, setAddressForm] = useState<Partial<Address>>({
     name: '',
@@ -643,18 +681,18 @@ const Account: React.FC<AccountProps> = ({
                           <Heart className="w-4 h-4 fill-current" />
                         </button>
                       </div>
-                      <div className="p-6 space-y-4">
-                        <div>
-                          <h3 className="font-cinzel font-bold text-sm uppercase tracking-widest">{product.name}</h3>
-                          <p className="text-[#C082A0] font-cinzel font-bold mt-1">R$ {product.price.toFixed(2)}</p>
-                        </div>
-                        <button 
-                          onClick={() => onAddToCart(product, 1)}
-                          className="w-full py-3 bg-[#1A1518] text-white text-[9px] font-bold uppercase tracking-widest rounded-xl hover:bg-[#C082A0] transition-all"
-                        >
-                          Mover para Sacola
-                        </button>
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="font-cinzel font-bold text-[#1A1518]">{product.name}</h3>
+                        <p className="text-stone-400 text-[10px]">R$ {product.price.toFixed(2)}</p>
                       </div>
+                      <button
+                        onClick={() => onAddToCart(product, 1)}
+                        className="w-full bg-[#1A1518] text-white py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#2D2429] transition-all shadow-lg"
+                      >
+                        Adicionar ao Carrinho
+                      </button>
+                    </div>
                     </div>
                   ))}
                 </div>
