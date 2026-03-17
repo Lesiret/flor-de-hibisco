@@ -136,13 +136,14 @@ if (config) {
           }
           const { data: ords } = await ordersQuery.order('created_at', { ascending: false });
           if (ords) {
-            const mappedOrders: Order[] = ords.map(o => ({
+            const mappedOrders: Order[] = ords.map((o: any) => ({
               id: o.id,
-              date: o.created_at,
-              total: o.total_amount,
+              user_id: o.user_id,
+              created_at: o.created_at,
+              total: o.total_amount,           // <-- aqui
               status: o.status,
-              paymentMethod: o.payment_method,
-              trackingCode: o.tracking_code,
+              payment_method: o.payment_method,
+              tracking_code: o.tracking_code,
               items: o.order_items.map((oi: any) => ({
                 id: oi.product_id,
                 name: oi.name,
@@ -161,22 +162,28 @@ if (config) {
   };
 
   useEffect(() => {
-    fetchData();
+    // Função async interna para poder usar await
+    const initialize = async () => {
+      // Carrega os dados iniciais
+      await fetchData();
 
-    // Detectar retorno do Mercado Pago
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('status');
-    const paymentId = params.get('payment_id');
+      // Detectar retorno do Mercado Pago
+      const params = new URLSearchParams(window.location.search);
+      const status = params.get('status');
+      const paymentId = params.get('payment_id');
 
-    if (status === 'approved') {
-      createOrder();
-      setView('payment-success');
-      clearCart();
-    } else if (status === 'rejected') {
-      setView('payment-failure');
-    } else if (status === 'in_process' || status === 'pending') {
-      setView('payment-pending');
-    }
+      if (status === 'approved') {
+        await fetchData(); // garante que os pedidos estejam atualizados
+        setView('payment-success');
+        clearCart();
+      } else if (status === 'rejected') {
+        setView('payment-failure');
+      } else if (status === 'in_process' || status === 'pending') {
+        setView('payment-pending');
+      }
+    };
+
+    initialize(); // chama a função async
   }, []);
 
   useEffect(() => {
