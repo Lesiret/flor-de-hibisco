@@ -76,7 +76,10 @@ const response = await fetch('/api/shipping', {
   body: JSON.stringify({
     from: payload.from,
     to: payload.to,
-    value: payload.value
+    items: items.map(item => ({
+      id: item.id,
+      quantity: item.quantity
+    }))
   })
 });
 

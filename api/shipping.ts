@@ -86,7 +86,7 @@ export default async function handler(req: any, res: any) {
           quantity: 1
         }
       ],
-      services: "1,2,3,4,12,17",
+      services: "2,3",
       options: { receipt: false, own_hand: false }
     };
 
