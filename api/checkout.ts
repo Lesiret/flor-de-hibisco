@@ -69,6 +69,7 @@ export default async function handler(req: any, res: any) {
           .from("orders")
           .select("id")
           .eq("user_id", userId)
+          .eq("status", "paid")
           .limit(1);
 
         if (existingOrders && existingOrders.length > 0) {
