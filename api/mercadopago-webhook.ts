@@ -10,26 +10,39 @@ export default async function handler(req: any, res: any) {
 
   try {
     const event = req.body;
-    const payment = event.data?.object?.payment || event.data?.object || {};
 
-    const { error } = await supabase.from("order").insert([
-      {
-        user_id: payment.payer?.id || "desconhecido",
-        total: payment.transaction_amount || 0,
-        status: payment.status || "pending",
-        payment_method: "Mercado Pago",
-        created_at: new Date()
-      }
-    ]);
+    const payment = event.data?.object || {};
+
+    const orderId = payment.external_reference;
+    const status = payment.status;
+
+    if (!orderId) {
+      return res.status(400).json({ error: "Sem external_reference" });
+    }
+
+    // mapear status
+    let newStatus = "pending";
+
+    if (status === "approved") newStatus = "approved";
+    if (status === "rejected") newStatus = "rejected";
+    if (status === "cancelled") newStatus = "cancelled";
+
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: newStatus
+      })
+      .eq("id", orderId);
 
     if (error) {
-      console.error("Erro ao salvar pedido:", error);
+      console.error("Erro ao atualizar pedido:", error);
       return res.status(500).json({ error: error.message });
     }
 
-    res.status(200).json({ success: true });
+    return res.status(200).json({ success: true });
+
   } catch (err: any) {
     console.error("Erro no webhook:", err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }

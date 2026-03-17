@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShoppingBag, Plus, Minus, Trash2, ArrowRight, Truck, MapPin, Loader2, Check, AlertTriangle, ChevronRight } from 'lucide-react';
 import { CartItem, ShippingConfig, ShippingOption, Address } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -23,14 +24,29 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const [selectedOption, setSelectedOption] = useState<ShippingOption | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+    };
+
+    getUser();
+  }, []);
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const isFreeShipping = subtotal >= shippingConfig.freeShippingThreshold;
 
   const finalShippingCost = isFreeShipping ? 0 : (selectedOption?.price || 0);
-  const total = subtotal + finalShippingCost;
-  const isValidCoupon = coupon.toUpperCase() === 'PRIMEIRACOMPRA';
+  const normalizedCoupon = coupon.trim().toUpperCase();
+  const isValidCoupon = normalizedCoupon === 'PRIMEIRACOMPRA';
   const discountPreview = isValidCoupon ? subtotal * 0.1 : 0;
+  const total = subtotal + finalShippingCost - discountPreview;
+
 
   const maskCEP = (val: string) => val.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').substring(0, 9);
 
@@ -122,6 +138,12 @@ const validOptions: ShippingOption[] = Array.isArray(data)
     setError(null);
 
     try {
+      if (!user) {
+        setError("Você precisa estar logado para finalizar a compra.");
+        setCheckingOut(false);
+        return;
+      }
+
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,8 +155,8 @@ const validOptions: ShippingOption[] = Array.isArray(data)
             quantity: item.quantity
           })),
           shippingCost: finalShippingCost,
-          coupon: coupon, // 👈 ENVIA O CUPOM
-          customerEmail: 'cliente@exemplo.com'
+          coupon: coupon,
+          userId: user.id // 🔥 AQUI
         })
       });
 
@@ -343,7 +365,7 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                 <div className="flex justify-between text-[#1A1518] font-cinzel font-bold text-xl border-t border-stone-100 pt-4">
                   <span>Total</span>
                   <span>
-                    R$ {(total - discountPreview).toFixed(2)}
+                    R$ {total.toFixed(2)}
                   </span>
                 </div>
               </div>

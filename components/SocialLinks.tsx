@@ -33,7 +33,7 @@ const SocialLinks: React.FC = () => {
           </div>
           
           <div className="space-y-1">
-            <h1 className="text-3xl font-cinzel font-bold text-[#2D2429] uppercase tracking-widest">Flor de Hibisco</h1>
+            <h1 className="text-3xl font-cinzel font-bold text-[#2D2429] uppercase tracking-widest">Jess</h1>
           </div>
           
           <p className="text-stone-400 font-playfair italic text-lg leading-relaxed">

@@ -19,7 +19,11 @@ export default async function handler(req: any, res: any) {
 
   try {
 
-    const { items, shippingCost, coupon } = req.body;
+    const { items, shippingCost, coupon, userId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Usuário não autenticado" });
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -27,7 +31,7 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    //  1. BUSCAR PRODUTOS REAIS NO BANCO
+    // 🔒 1. BUSCAR PRODUTOS REAIS NO BANCO
     const productIds = items.map((item: any) => item.id);
 
     const { data: products, error } = await supabase
@@ -35,17 +39,16 @@ export default async function handler(req: any, res: any) {
       .select("id, name, price")
       .in("id", productIds);
 
-    if (error) {
+    if (error || !products || products.length === 0) {
       throw new Error("Erro ao buscar produtos");
     }
 
-    //  criar mapa de produtos
     const productMap: any = {};
     products.forEach((p: any) => {
       productMap[p.id] = p;
     });
 
-    //  2. MONTAR ITENS SEGUROS
+    // 🔒 2. MONTAR ITENS SEGUROS
     let subtotal = 0;
 
     const secureItems = items.map((item: any) => {
@@ -78,7 +81,7 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Subtotal inválido" });
     }
 
-    //  3. CUPOM
+    // 🔒 3. VALIDAR CUPOM (PRIMEIRA COMPRA)
     let discount = 0;
     let couponApplied = null;
 
@@ -86,20 +89,31 @@ export default async function handler(req: any, res: any) {
       const normalizedCoupon = coupon.toUpperCase();
 
       if (normalizedCoupon === "PRIMEIRACOMPRA") {
+
+        const { data: existingOrders } = await supabase
+          .from("orders")
+          .select("id")
+          .eq("user_id", userId)
+          .limit(1);
+
+        if (existingOrders && existingOrders.length > 0) {
+          throw new Error("Cupom válido apenas para primeira compra");
+        }
+
         discount = subtotal * 0.1;
         couponApplied = "PRIMEIRACOMPRA";
       }
     }
 
-        // VALIDAÇÃO EXTRA (COLOCA AQUI)
+    // 🔒 VALIDAÇÃO EXTRA
     if (discount > subtotal) {
       throw new Error("Desconto inválido");
     }
 
-    //  4. FRETE (ainda simples, vamos melhorar depois)
+    // 🔒 4. FRETE
     const safeShippingCost = Math.max(Number(shippingCost) || 0, 0);
 
-    //  5. TOTAL FINAL
+    // 🔒 5. TOTAL FINAL
     const total = subtotal - discount + safeShippingCost;
 
     if (total <= 0) {
@@ -112,9 +126,43 @@ export default async function handler(req: any, res: any) {
       process.env.APP_URL ||
       `https://${req.headers.host}`;
 
+    // 🔥 6. SALVAR PEDIDO (ANTES DO PAGAMENTO)
+    const { data: order, error: orderError } = await supabase
+      .from("orders")
+      .insert([
+        {
+          user_id: userId,
+          total: total,
+          status: "pending",
+          payment_method: "mercadopago"
+        }
+      ])
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      throw new Error("Erro ao criar pedido");
+    }
+
+    // 🔥 SALVAR ITENS DO PEDIDO
+    const orderItems = secureItems.map((item: any) => ({
+      order_id: order.id,
+      product_id: item.id,
+      quantity: item.quantity,
+      price_at_time: item.unit_price
+    }));
+
+    const { error: itemsError } = await supabase
+      .from("order_items")
+      .insert(orderItems);
+
+    if (itemsError) {
+      throw new Error("Erro ao salvar itens do pedido");
+    }
+
     const preference = new Preference(mpClient);
 
-    //  6. ITENS AJUSTADOS (com desconto)
+    // 🔒 7. ITENS AJUSTADOS (com desconto)
     const adjustedItems = [
       ...secureItems,
       ...(discount > 0
@@ -128,9 +176,12 @@ export default async function handler(req: any, res: any) {
         : [])
     ];
 
+    // 🔥 8. CRIAR PAGAMENTO
     const response = await preference.create({
       body: {
         items: adjustedItems,
+
+        external_reference: order.id, // 🔥 LIGA COM WEBHOOK
 
         shipments: {
           cost: safeShippingCost,
