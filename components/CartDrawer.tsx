@@ -18,6 +18,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const [cep, setCep] = useState('');
   const [calculating, setCalculating] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [coupon, setCoupon] = useState('');
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [selectedOption, setSelectedOption] = useState<ShippingOption | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,9 +26,11 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
 
   const subtotal = items.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const isFreeShipping = subtotal >= shippingConfig.freeShippingThreshold;
-  
+
   const finalShippingCost = isFreeShipping ? 0 : (selectedOption?.price || 0);
   const total = subtotal + finalShippingCost;
+  const isValidCoupon = coupon.toUpperCase() === 'PRIMEIRACOMPRA';
+  const discountPreview = isValidCoupon ? subtotal * 0.1 : 0;
 
   const maskCEP = (val: string) => val.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').substring(0, 9);
 
@@ -127,6 +130,7 @@ const validOptions: ShippingOption[] = Array.isArray(data)
             quantity: item.quantity
           })),
           shippingCost: finalShippingCost,
+          coupon: coupon, // 👈 ENVIA O CUPOM
           customerEmail: 'cliente@exemplo.com'
         })
       });
@@ -137,12 +141,11 @@ const validOptions: ShippingOption[] = Array.isArray(data)
       }
 
       const { init_point } = await response.json();
-      
-      // Redireciona para o checkout do Mercado Pago
       window.location.href = init_point;
+
     } catch (err: any) {
       console.error("Erro no Checkout:", err);
-      setError(err.message || "Erro ao processar pagamento. Verifique se o Mercado Pago está configurado.");
+      setError(err.message || "Erro ao processar pagamento.");
     } finally {
       setCheckingOut(false);
     }
@@ -294,22 +297,51 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                   </div>
                 )}
               </div>
+              {/* Código de desconto */}
+              <div className="space-y-2">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-stone-400">
+                  Cupom de desconto
+                </p>
 
+                <input
+                  type="text"
+                  placeholder="Digite seu cupom"
+                  value={coupon}
+                  onChange={(e) => setCoupon(e.target.value)}
+                  className="w-full bg-white border border-stone-100 py-3 px-4 rounded-xl text-xs focus:outline-none focus:border-[#C082A0]"
+                />
+              </div>
               {/* Totals */}
               <div className="space-y-3">
                 <div className="flex justify-between text-stone-400 text-[10px] font-bold uppercase tracking-widest">
                   <span>Subtotal</span>
                   <span>R$ {subtotal.toFixed(2)}</span>
                 </div>
+
                 <div className="flex justify-between text-stone-400 text-[10px] font-bold uppercase tracking-widest">
                   <span>Entrega ({selectedOption?.name || '...'})</span>
                   <span className={isFreeShipping ? 'text-green-500 font-bold' : ''}>
-                    {isFreeShipping ? 'GRÁTIS' : selectedOption ? `R$ ${selectedOption.price.toFixed(2)}` : 'A calcular'}
+                    {isFreeShipping
+                      ? 'GRÁTIS'
+                      : selectedOption
+                      ? `R$ ${selectedOption.price.toFixed(2)}`
+                      : 'A calcular'}
                   </span>
                 </div>
+
+                {/* Desconto (visual apenas) */}
+                {discountPreview > 0 && (
+                  <div className="flex justify-between text-green-500 text-[10px] font-bold uppercase tracking-widest">
+                    <span>Desconto</span>
+                    <span>- R$ {discountPreview.toFixed(2)}</span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-[#1A1518] font-cinzel font-bold text-xl border-t border-stone-100 pt-4">
                   <span>Total</span>
-                  <span>R$ {total.toFixed(2)}</span>
+                  <span>
+                    R$ {(total - discountPreview).toFixed(2)}
+                  </span>
                 </div>
               </div>
 

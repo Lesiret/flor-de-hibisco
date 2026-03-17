@@ -1,4 +1,10 @@
 import axios from "axios";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export default async function handler(req: any, res: any) {
 
@@ -7,7 +13,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { from, to, value } = req.body;
+    const { from, to, items } = req.body;
 
     if (!from || !to) {
       return res.status(400).json({ error: "CEP obrigatório" });
@@ -19,6 +25,46 @@ export default async function handler(req: any, res: any) {
     if (cleanFrom.length !== 8 || cleanTo.length !== 8) {
       return res.status(400).json({ error: "CEP inválido" });
     }
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "Itens inválidos" });
+    }
+
+    // 🔒 BUSCAR PRODUTOS REAIS
+    const productIds = items.map((item: any) => item.id);
+
+    const { data: products, error } = await supabase
+      .from("products")
+      .select("id, price")
+      .in("id", productIds);
+
+    if (error) {
+      throw new Error("Erro ao buscar produtos");
+    }
+
+    const productMap: any = {};
+    products.forEach((p: any) => {
+      productMap[p.id] = p;
+    });
+
+    // 🔒 CALCULAR VALOR REAL
+    let totalValue = 0;
+
+    items.forEach((item: any) => {
+      const product = productMap[item.id];
+
+      if (!product) {
+        throw new Error(`Produto inválido: ${item.id}`);
+      }
+
+      const quantity = Number(item.quantity);
+
+      if (quantity <= 0 || quantity > 10) {
+        throw new Error("Quantidade inválida");
+      }
+
+      totalValue += Number(product.price) * quantity;
+    });
 
     const token = process.env.MELHOR_ENVIO_TOKEN;
 
@@ -36,7 +82,7 @@ export default async function handler(req: any, res: any) {
           height: 8,
           length: 23,
           weight: 1,
-          insurance_value: Number(value || 0),
+          insurance_value: totalValue, // 🔥 AGORA SEGURO
           quantity: 1
         }
       ],
@@ -58,21 +104,26 @@ export default async function handler(req: any, res: any) {
       }
     );
 
-    // Garantir que response.data seja sempre array
     const data = Array.isArray(response.data) ? response.data : [];
-    console.log("Melhor Envio Data:", data);
+
+    const SHIPPING_DISCOUNT = 0.4;
+    const MIN_SHIPPING_PRICE = 10;
 
     const result = data
       .filter((service: any) => !service.error && service.price)
-      .map((service: any) => ({
-        id: String(service.id),
-        company: service.company?.name || "Transportadora",
-        name: service.name,
-        price: Number(service.price),
-        delivery_time: service.delivery_time
-      }));
+      .map((service: any) => {
+        const originalPrice = Number(service.price) || 0;
+        const discountedPrice = originalPrice * (1 - SHIPPING_DISCOUNT);
 
-    // Fallback caso nenhuma transportadora retorne
+        return {
+          id: String(service.id),
+          company: service.company?.name || "Transportadora",
+          name: service.name,
+          price: Number(Math.max(discountedPrice, MIN_SHIPPING_PRICE).toFixed(2)),
+          delivery_time: service.delivery_time
+        };
+      });
+
     if (result.length === 0) {
       return res.status(200).json([
         {
