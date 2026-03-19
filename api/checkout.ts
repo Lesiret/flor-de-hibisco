@@ -83,7 +83,8 @@ export default async function handler(req: any, res: any) {
         else if (normalizedCoupon === "ANNA15") {
           discount = subtotal * 0.15;
           couponApplied = "ANNA15";
-    }
+      }
+   }
 
     if (discount > subtotal) throw new Error("Desconto inválido");
 
