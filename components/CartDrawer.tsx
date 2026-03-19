@@ -42,9 +42,17 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const isFreeShipping = subtotal >= shippingConfig.freeShippingThreshold;
 
   const finalShippingCost = isFreeShipping ? 0 : (selectedOption?.price || 0);
+
   const normalizedCoupon = coupon.trim().toUpperCase();
-  const isValidCoupon = normalizedCoupon === 'PRIMEIRACOMPRA';
-  const discountPreview = isValidCoupon ? subtotal * 0.1 : 0;
+
+    let discountPreview = 0;
+
+    if (normalizedCoupon === 'PRIMEIRACOMPRA') {
+      discountPreview = subtotal * 0.1;
+    } else if (normalizedCoupon === 'ANNA15') {
+      discountPreview = subtotal * 0.15;
+    }
+
   const total = subtotal + finalShippingCost - discountPreview;
 
 
@@ -335,7 +343,14 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                   onChange={(e) => setCoupon(e.target.value)}
                   className="w-full bg-white border border-stone-100 py-3 px-4 rounded-xl text-xs focus:outline-none focus:border-[#C082A0]"
                 />
+
+                {normalizedCoupon.length >= 4 && discountPreview === 0 && (
+                    <p className="text-red-400 text-xs mt-2">
+                      Cupom inválido
+                    </p>
+                  )}
               </div>
+              
               {/* Totals */}
               <div className="space-y-3">
                 <div className="flex justify-between text-stone-400 text-[10px] font-bold uppercase tracking-widest">
