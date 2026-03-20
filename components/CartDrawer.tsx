@@ -390,22 +390,28 @@ const validOptions: ShippingOption[] = Array.isArray(data)
               </div>
 
               <button 
-                onClick={async () => {
-                  if (addresses.length === 0) {
-                    alert("Cadastre um endereço antes de continuar.");
-                    return;
-                  }
+                  onClick={() => {
+                    if (addresses.length === 0) {
+                      alert("Cadastre um endereço antes de continuar.");
+                      return;
+                    }
 
-                  const selectedAddress = addresses.find(a => a.zipCode === cep);
-                  if (!selectedAddress) {
-                    alert("Selecione um endereço válido.");
-                    return;
-                  }
-                  await handleCheckout(); // chama o checkout e abre a aba do Mercado Pago
-                }}
-                disabled={(!selectedOption && !isFreeShipping) || checkingOut}
-                className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.5em] transition-all shadow-xl flex items-center justify-center space-x-4 group ${((!selectedOption && !isFreeShipping) || checkingOut) ? 'bg-stone-100 text-stone-300' : 'bg-[#1A1518] text-white hover:bg-[#C082A0]'}`}
-              >
+                    if (step === 'cart') {
+                      setStep('address'); // abre a etapa de CEP / endereço
+                      return;
+                    }
+
+                    const selectedAddress = addresses.find(a => a.zipCode === cep);
+                    if (!selectedAddress) {
+                      alert("Selecione um endereço válido.");
+                      return;
+                    }
+
+                    handleCheckout(); // só chama checkout depois de selecionar endereço
+                  }}
+                  disabled={(!selectedOption && !isFreeShipping) || checkingOut}
+                  className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.5em] transition-all shadow-xl flex items-center justify-center space-x-4 group ${((!selectedOption && !isFreeShipping) || checkingOut) ? 'bg-stone-100 text-stone-300' : 'bg-[#1A1518] text-white hover:bg-[#C082A0]'}`}
+                >
                 {checkingOut ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
