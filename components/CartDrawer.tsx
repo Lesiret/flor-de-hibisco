@@ -24,6 +24,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const [selectedOption, setSelectedOption] = useState<ShippingOption | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
+  const [step, setStep] = useState<'cart' | 'address' | 'payment'>('cart');
   const [user, setUser] = useState<any>(null);
 
     useEffect(() => {
@@ -141,48 +142,51 @@ const validOptions: ShippingOption[] = Array.isArray(data)
     }
   };
 
-  const handleCheckout = async () => {
-    setCheckingOut(true);
-    setError(null);
+      const handleCheckout = async () => {
+      setCheckingOut(true);
+      setError(null);
 
-    try {
-      if (!user) {
-        setError("Você precisa estar logado para finalizar a compra.");
+      try {
+        if (!user) {
+          setError("Você precisa estar logado para finalizar a compra.");
+          setCheckingOut(false);
+          return;
+        }
+
+        const selectedAddress = addresses.find(a => a.zipCode === cep);
+
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity
+            })),
+            shippingCost: finalShippingCost,
+            coupon: coupon,
+            userId: user.id,
+            address: selectedAddress
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Falha ao iniciar checkout');
+        }
+
+        const { init_point } = await response.json();
+        window.location.href = init_point;
+
+      } catch (err: any) {
+        console.error("Erro no Checkout:", err);
+        setError(err.message || "Erro ao processar pagamento.");
+      } finally {
         setCheckingOut(false);
-        return;
       }
-
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-          })),
-          shippingCost: finalShippingCost,
-          coupon: coupon,
-          userId: user.id // 🔥 AQUI
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha ao iniciar checkout');
-      }
-
-      const { init_point } = await response.json();
-      window.location.href = init_point;
-
-    } catch (err: any) {
-      console.error("Erro no Checkout:", err);
-      setError(err.message || "Erro ao processar pagamento.");
-    } finally {
-      setCheckingOut(false);
-    }
-  };
+    };
 
   return (
     <>
@@ -350,7 +354,7 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                     </p>
                   )}
               </div>
-              
+
               {/* Totals */}
               <div className="space-y-3">
                 <div className="flex justify-between text-stone-400 text-[10px] font-bold uppercase tracking-widest">
@@ -386,7 +390,14 @@ const validOptions: ShippingOption[] = Array.isArray(data)
               </div>
 
               <button 
-                onClick={handleCheckout}
+                onClick={() => {
+                  if (addresses.length === 0) {
+                    alert("Cadastre um endereço antes de continuar.");
+                    return;
+                  }
+
+                  setStep('address');
+                }}
                 disabled={(!selectedOption && !isFreeShipping) || checkingOut}
                 className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.5em] transition-all shadow-xl flex items-center justify-center space-x-4 group ${((!selectedOption && !isFreeShipping) || checkingOut) ? 'bg-stone-100 text-stone-300' : 'bg-[#1A1518] text-white hover:bg-[#C082A0]'}`}
               >

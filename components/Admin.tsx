@@ -9,6 +9,8 @@ import {
 import { Product, ViewState, ShippingConfig, Order } from '../types';
 import { supabase } from '../lib/supabase';
 import { uploadImage } from '../lib/storage';
+import { useEffect } from 'react';
+
 
 interface AdminProps {
   products: Product[];
@@ -17,7 +19,7 @@ interface AdminProps {
   onAdd: (p: Product) => void;
   onUpdate: (p: Product) => void;
   onDelete: (id: string) => void;
-  onUpdateOrder: () => void;
+  onUpdateOrder: (orders: Order[]) => void;
   onUpdateShipping: (config: ShippingConfig) => void;
   onNavigate: (v: ViewState) => void;
   onNotify: (msg: string, type?: 'success' | 'error') => void;
@@ -30,8 +32,40 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
   const [isNewProduct, setIsNewProduct] = useState(false);
   const [search, setSearch] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  
   const [tempShipping, setTempShipping] = useState<ShippingConfig>(shippingConfig);
+
+  // 🔹 Função para buscar pedidos do Supabase
+const fetchOrders = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        order_items (
+          quantity,
+          product_id,
+          products:products!inner (
+            id,
+            name
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (data) onUpdateOrder(data);
+  } catch (err) {
+    console.error('Erro ao buscar pedidos:', err);
+    onNotify('Erro ao carregar pedidos', 'error');
+  }
+};
+
+useEffect(() => {
+  if (activeAdminTab === 'orders') {
+    fetchOrders();
+  }
+}, [activeAdminTab]);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -105,14 +139,20 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
     onUpdateShipping(tempShipping);
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string, tracking?: string) => {
-    const { error } = await supabase.from('orders').update({ status, tracking_code: tracking }).eq('id', orderId);
-    if (error) onNotify("Erro ao atualizar pedido", "error");
-    else {
-      onNotify("Status do pedido atualizado!");
-      onUpdateOrder();
-    }
-  };
+    const handleUpdateOrderStatus = async (orderId: string, status: string, tracking?: string) => {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status, tracking_code: tracking })
+        .eq('id', orderId);
+
+      if (error) {
+        onNotify("Erro ao atualizar pedido", "error");
+      } else {
+        onNotify("Status do pedido atualizado!");
+        // 🔹 Passo 5: atualizar pedidos chamando fetchOrders
+        fetchOrders(); // já atualiza automaticamente o estado com onUpdateOrder
+      }
+    };
 
   const maskCEP = (val: string) => val.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').substring(0, 9);
 
@@ -228,14 +268,14 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-[#1A1518] uppercase tracking-widest">#{order.id.substring(0, 8)}</span>
-                          <span className="text-[9px] text-stone-400 mt-1">{new Date(order.date).toLocaleDateString('pt-BR')}</span>
+                          <span className="text-[9px] text-stone-400 mt-1">{new Date(order.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
                       </td>
                       <td className="px-8 py-6 font-cinzel font-bold text-[#C082A0]">R$ {order.total.toFixed(2)}</td>
                       <td className="px-8 py-6">
                         <select 
                           value={order.status}
-                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any, order.trackingCode)}
+                          onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as any, order.tracking_code)}
                           className="bg-[#FAF9F6] border-none text-[10px] font-bold uppercase tracking-widest py-2 px-4 rounded-full focus:ring-2 focus:ring-[#C082A0]/20 cursor-pointer"
                         >
                           <option value="Pagamento em análise">Pagamento em análise</option>
@@ -251,7 +291,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                           <input 
                             type="text"
                             placeholder="Cód. Rastreio"
-                            defaultValue={order.trackingCode || ''}
+                            defaultValue={order.tracking_code || ''}
                             onBlur={(e) => handleUpdateOrderStatus(order.id, order.status, e.target.value)}
                             className="bg-[#FAF9F6] border-none text-[10px] font-bold uppercase tracking-widest py-2 px-4 rounded-full w-32 focus:ring-2 focus:ring-[#C082A0]/20"
                           />
@@ -260,8 +300,12 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                       <td className="px-8 py-6 text-right">
                         <button 
                           onClick={() => {
-                            // Show details modal or similar
-                            onNotify("Detalhes do pedido: " + order.items.map(i => `${i.quantity}x ${i.name}`).join(', '));
+                            onNotify(
+                                    "Detalhes do pedido: " +
+                                    (order.order_items || [])
+                                      .map(i => `${i.quantity}x ${i.products?.name}`)
+                                      .join(', ')
+                                  );
                           }}
                           className="p-3 rounded-full hover:bg-[#C082A0]/10 text-stone-300 hover:text-[#C082A0] transition-all"
                         >
@@ -400,8 +444,11 @@ const Admin: React.FC<AdminProps> = ({ products, orders, shippingConfig, onAdd, 
                           type="number" 
                           step="0.01" 
                           required
-                          value={currentProduct.price || ''} 
-                          onChange={e => setCurrentProduct({...currentProduct, price: parseFloat(e.target.value)})} 
+                          value={currentProduct.price ?? ''} 
+                          onChange={(e) => setCurrentProduct({
+                            ...currentProduct,
+                            price: e.target.value ? parseFloat(e.target.value) : 0
+                          })}
                           className="w-full bg-[#FAF9F6] border-none py-5 px-8 rounded-[1.5rem] text-sm font-bold focus:ring-2 focus:ring-[#C082A0]/20" 
                         />
                       </div>

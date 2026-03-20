@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import axios from "axios";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,9 +10,29 @@ export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return res.status(405).send("Method not allowed");
 
   try {
-    const event = req.body;
+    const body = req.body;
 
-    const payment = event.data?.object || {};
+    if (body.type !== "payment") {
+      return res.status(200).send("ignored");
+    }
+
+    const paymentId = body.data?.id;
+
+    if (!paymentId) {
+      return res.status(400).json({ error: "Sem paymentId" });
+    }
+
+    // 🔥 BUSCAR PAGAMENTO REAL NO MERCADO PAGO
+    const mpResponse = await axios.get(
+      `https://api.mercadopago.com/v1/payments/${paymentId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}`
+        }
+      }
+    );
+
+    const payment = mpResponse.data;
 
     const orderId = payment.external_reference;
     const status = payment.status;
@@ -20,18 +41,15 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Sem external_reference" });
     }
 
-    // mapear status
     let newStatus = "pending";
 
-    if (status === "approved") newStatus = "approved";
-    if (status === "rejected") newStatus = "rejected";
-    if (status === "cancelled") newStatus = "cancelled";
+    if (status === "approved") newStatus = "Pagamento aprovado";
+    if (status === "rejected") newStatus = "Cancelado";
+    if (status === "cancelled") newStatus = "Cancelado";
 
     const { error } = await supabase
       .from("orders")
-      .update({
-        status: newStatus
-      })
+      .update({ status: newStatus })
       .eq("id", orderId);
 
     if (error) {
@@ -42,7 +60,7 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json({ success: true });
 
   } catch (err: any) {
-    console.error("Erro no webhook:", err);
+    console.error("Erro no webhook:", err.response?.data || err.message);
     return res.status(500).json({ error: err.message });
   }
 }

@@ -78,14 +78,7 @@ const { data: config } = await supabase
   .select('*')
   .maybeSingle();
 
-if (config) {
-  setShippingConfig({
-    originZipCode: config.origin_zip_code,
-    flatRate: config.flat_rate,
-    freeShippingThreshold: config.free_shipping_threshold,
-    estimatedDaysBase: config.estimated_days_base || 5
-  });
-}      if (config) {
+      if (config) {
         setShippingConfig({
           originZipCode: config.origin_zip_code,
           flatRate: config.flat_rate,
@@ -130,9 +123,10 @@ if (config) {
           const { data: wish } = await supabase.from('wishlist').select('product_id').eq('user_id', session.user.id);
           if (wish) setWishlist(wish.map(w => w.product_id));
 
-          const ordersQuery = supabase.from('orders').select('*, order_items(*)');
+          let ordersQuery = supabase.from('orders').select('*, order_items(*)');
+
           if (!profile.is_admin) {
-            ordersQuery.eq('user_id', session.user.id);
+            ordersQuery = ordersQuery.eq('user_id', session.user.id);
           }
           const { data: ords } = await ordersQuery.order('created_at', { ascending: false });
           if (ords) {
@@ -161,30 +155,97 @@ if (config) {
     }
   };
 
-  useEffect(() => {
-    // Função async interna para poder usar await
-    const initialize = async () => {
-      // Carrega os dados iniciais
-      await fetchData();
+    useEffect(() => {
+      let interval: any = null;
 
-      // Detectar retorno do Mercado Pago
-      const params = new URLSearchParams(window.location.search);
-      const status = params.get('status');
-      const paymentId = params.get('payment_id');
+      // Função async interna para poder usar await
+      const initialize = async () => {
+        // Carrega os dados iniciais
+        await fetchData();
 
-      if (status === 'approved') {
-        await fetchData(); // garante que os pedidos estejam atualizados
-        setView('payment-success');
-        clearCart();
-      } else if (status === 'rejected') {
-        setView('payment-failure');
-      } else if (status === 'in_process' || status === 'pending') {
-        setView('payment-pending');
-      }
-    };
+        // Detectar retorno do Mercado Pago
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status');
 
-    initialize(); // chama a função async
-  }, []);
+        if (status === 'approved') {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await fetchData();
+          setView('payment-success');
+          clearCart();
+
+        } else if (status === 'rejected') {
+          setView('payment-failure');
+
+        } else if (status === 'in_process' || status === 'pending') {
+          setView('payment-pending');
+
+          // 🔥 polling até confirmar pagamento
+          interval = setInterval(async () => {
+            await fetchData();
+
+            const params = new URLSearchParams(window.location.search);
+
+            const { data: { session } } = await supabase.auth.getSession();
+
+              if (!session) return;
+
+              const { data: ords } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+              const latestOrder = ords?.[0];
+
+            if (
+                  latestOrder?.status === 'approved' ||
+                  latestOrder?.status === 'Pagamento aprovado'
+                ) {
+              clearInterval(interval);
+              setView('payment-success');
+              clearCart();
+            }
+          }, 5000);
+        }
+      };
+
+      initialize();
+
+      const channel = supabase
+        .channel('orders-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders'
+          },
+          (payload) => {
+            if (!user || payload.new.user_id !== user.id) return;
+
+            const status = payload.new.status;
+
+            if (status === 'approved' || status === 'Pagamento aprovado') {
+              fetchData();
+
+              notify("✅ Pagamento aprovado!", "success");
+
+              setView('payment-success');
+
+              clearCart();
+            }
+          }
+        )
+        .subscribe();
+
+      // 🧹 cleanup
+      return () => {
+        if (interval) clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
+
+    }, [user]);
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cart));
@@ -298,7 +359,7 @@ if (config) {
       const { data: order, error: orderError } = await supabase.from('orders').insert([{
         user_id: session.user.id,
         total_amount: total,
-        status: 'Pagamento aprovado',
+        status: 'pending',
         payment_method: paymentMethod
       }]).select().single();
 
