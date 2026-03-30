@@ -19,7 +19,7 @@ interface AdminProps {
   onAdd: (p: Product) => void;
   onUpdate: (p: Product) => void;
   onDelete: (id: string) => void;
-  onUpdateOrder: (orders: Order[]) => void;
+  onUpdateOrder: React.Dispatch<React.SetStateAction<Order[]>>;
   onUpdateShipping: (config: ShippingConfig) => void;
   onNavigate: (v: ViewState) => void;
   onNotify: (msg: string, type?: 'success' | 'error') => void;
@@ -40,21 +40,26 @@ const fetchOrders = async () => {
     const { data, error } = await supabase
       .from('orders')
       .select(`
-        *,
-        order_items (
-          quantity,
-          product_id,
-          products:products!inner (
-            id,
-            name
-          )
-        )
-      `)
+              *,
+              order_items (
+                quantity,
+                product_id,
+                price_at_time,
+                products (
+                  id,
+                  name
+                )
+              ),
+              profiles (
+                name,
+                phone
+              )
+            `)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    if (data) onUpdateOrder(data);
+    if (data) onUpdateOrder(() => data);
   } catch (err) {
     console.error('Erro ao buscar pedidos:', err);
     onNotify('Erro ao carregar pedidos', 'error');
@@ -66,6 +71,79 @@ useEffect(() => {
     fetchOrders();
   }
 }, [activeAdminTab]);
+
+useEffect(() => {
+  const channel = supabase
+    .channel('orders-realtime-admin')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'orders' },
+      async (payload) => {
+        console.log('Realtime pedido:', payload);
+
+        const record = (payload.new || payload.old) as { id: string };
+
+        if (!record?.id) return;
+
+        // DELETE → remove direto
+        if (payload.eventType === 'DELETE') {
+          onUpdateOrder(prev => prev.filter(o => o.id !== record.id));
+          return;
+        }
+
+        // INSERT ou UPDATE → busca completo
+        const { data } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              quantity,
+              product_id,
+              price_at_time,
+              products (
+                id,
+                name
+              )
+            ),
+            profiles (
+              name,
+              phone
+            )
+          `)
+          .eq('id', record.id)
+          .single();
+
+        if (!data) return;
+
+        onUpdateOrder(prev => {
+          const updated = [...prev];
+          const index = updated.findIndex(o => o.id === data.id);
+
+          if (payload.eventType === 'INSERT') {
+            onNotify('🛒 Novo pedido recebido!', 'success');
+
+            const audio = new Audio('/images/sino-notif.mp3');
+            audio.play().catch(() => {});
+          }
+
+          if (index !== -1) {
+            updated[index] = data;
+          } else {
+            updated.unshift(data);
+          }
+
+          return updated.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
@@ -150,7 +228,6 @@ useEffect(() => {
       } else {
         onNotify("Status do pedido atualizado!");
         // 🔹 Passo 5: atualizar pedidos chamando fetchOrders
-        fetchOrders(); // já atualiza automaticamente o estado com onUpdateOrder
       }
     };
 
@@ -251,6 +328,24 @@ useEffect(() => {
         {/* Orders Tab */}
         {activeAdminTab === 'orders' && (
           <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="flex justify-start">
+              <select
+                onChange={(e) => {
+                  const val = e.target.value;
+
+                  if (val === 'all') fetchOrders();
+                  else onUpdateOrder(prev => prev.filter(o => o.status === val));
+                }}
+                className="mb-4 p-2 rounded-lg border text-sm"
+              >
+                <option value="all">Todos</option>
+                <option value="Pagamento em análise">Pendentes</option>
+                <option value="Pagamento aprovado">Aprovados</option>
+                <option value="Produto enviado">Enviados</option>
+                <option value="Entregue">Entregues</option>
+                <option value="Cancelado">Cancelados</option>
+              </select>
+            </div>
             <div className="bg-white rounded-[2.5rem] shadow-premium border border-stone-100 overflow-hidden overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-[#FAF9F6]">
@@ -267,7 +362,17 @@ useEffect(() => {
                     <tr key={order.id} className="hover:bg-stone-50/50 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex flex-col">
-                          <span className="text-[10px] font-bold text-[#1A1518] uppercase tracking-widest">#{order.id.substring(0, 8)}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-[#1A1518] uppercase tracking-widest">
+                              #{order.id.substring(0, 8)}
+                            </span>
+
+                            {new Date(order.created_at).getTime() > Date.now() - 1000 * 60 * 5 && (
+                              <span className="bg-green-100 text-green-600 text-[8px] px-2 py-1 rounded-full font-bold">
+                                NOVO
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[9px] text-stone-400 mt-1">{new Date(order.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
                       </td>
@@ -300,13 +405,27 @@ useEffect(() => {
                       <td className="px-8 py-6 text-right">
                         <button 
                           onClick={() => {
-                            onNotify(
-                                    "Detalhes do pedido: " +
-                                    (order.order_items || [])
-                                      .map(i => `${i.quantity}x ${i.products?.name}`)
-                                      .join(', ')
-                                  );
-                          }}
+                              onNotify(`
+                             Cliente: ${order.profiles?.name || 'N/A'}
+                             Telefone: ${order.profiles?.phone || 'N/A'}
+
+                             Itens:
+                            ${(order.order_items || [])
+                              .map(i => `${i.quantity}x ${i.products?.name}`)
+                              .join('\n')}
+
+                             Total: R$ ${order.total?.toFixed(2)}
+
+                             Entrega:
+                            Nome: ${order.recipient_name || ''}
+                            Telefone: ${order.recipient_phone || ''}
+
+                            ${order.street || ''}, ${order.number || ''}
+                            ${order.neighborhood || ''}
+                            ${order.city || ''} - ${order.state || ''}
+                            CEP: ${order.zip_code || ''}
+                            `);
+                            }}
                           className="p-3 rounded-full hover:bg-[#C082A0]/10 text-stone-300 hover:text-[#C082A0] transition-all"
                         >
                           <Eye className="w-4 h-4" />
@@ -457,13 +576,13 @@ useEffect(() => {
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 ml-1">Descrição</label>
                       <textarea 
-                        rows={6} 
-                        required
-                        value={currentProduct.description || ''} 
-                        onChange={e => setCurrentProduct({...currentProduct, description: e.target.value})} 
-                        placeholder="Detalhes do produto..." 
-                        className="w-full bg-[#FAF9F6] border-none py-6 px-8 rounded-[2rem] text-sm font-medium leading-relaxed resize-none focus:ring-2 focus:ring-[#C082A0]/20" 
-                      />
+                      rows={6} 
+                      required
+                      value={currentProduct.description || ''} 
+                      onChange={e => setCurrentProduct({...currentProduct, description: e.target.value})} 
+                      placeholder="Detalhes do produto..." 
+                      className="w-full bg-[#FAF9F6] border-none py-6 px-8 rounded-[2rem] text-sm font-medium leading-relaxed resize-y focus:ring-2 focus:ring-[#C082A0]/20"
+                    />
                     </div>
                   </div>
 

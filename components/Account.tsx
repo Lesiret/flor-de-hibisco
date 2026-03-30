@@ -41,30 +41,66 @@ const Account: React.FC<AccountProps> = ({
   
   React.useEffect(() => {
     // Popula inicialmente os pedidos
-    const mapped = orders.map(o => ({
+    const mapped = orders
+    .filter(o => o.user_id === user.id)
+    .map(o => ({
       ...o,
       tracking_code: o.tracking_code || ''
     }));
     setLocalOrders(mapped);
 
     // Configura Realtime
+      const fetchFullOrder = async (id: string) => {
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              *,
+              products (*)
+            )
+          `)
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          console.error('Erro ao buscar pedido completo:', error);
+          return null;
+        }
+
+        return data;
+      };
+
     const subscription = supabase
       .channel('public:orders')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          const newOrder = payload.new as Order;
-          setLocalOrders(prev => {
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        async (payload) => {
+          const record = (payload.new || payload.old) as { id: string };
+
+          if (!record?.id) return;
+
+          if (payload.eventType === 'DELETE') {
+              setLocalOrders(prev => prev.filter(o => o.id !== record.id));
+              return;
+            }
+
+            const fullOrder = await fetchFullOrder(record.id);
+            if (!fullOrder) return;
+
+            setLocalOrders(prev => {
             const updated = [...prev];
-            const index = updated.findIndex(o => o.id === newOrder.id);
+            const index = updated.findIndex(o => o.id === fullOrder.id);
 
             if (payload.eventType === 'INSERT') {
-              updated.unshift(newOrder);
+              updated.unshift(fullOrder);
+
             } else if (payload.eventType === 'UPDATE' && index !== -1) {
-              updated[index] = newOrder;
-            } else if (payload.eventType === 'DELETE' && index !== -1) {
-              updated.splice(index, 1);
+              updated[index] = fullOrder;
+
+            } else if (payload.eventType === 'UPDATE' && index === -1) {
+              updated.unshift(fullOrder);
             }
 
             return updated;
@@ -79,7 +115,7 @@ const Account: React.FC<AccountProps> = ({
     return () => {
       supabase.removeChannel(subscription);
     };
-  }, []); 
+  }, [user.id]); 
 
   const [addressForm, setAddressForm] = useState<Partial<Address>>({
     name: '',
@@ -147,7 +183,7 @@ const Account: React.FC<AccountProps> = ({
   const isNewPassValid = passwords.new.length >= 6;
   const isNewError = touchedPasswords.new && !isNewPassValid && passwords.new !== '';
 
-  const isPasswordFormValid = areNewPasswordsMatching && isNewPassValid && passwords.current.length > 0;
+  const isPasswordFormValid = areNewPasswordsMatching && isNewPassValid;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -160,37 +196,98 @@ const Account: React.FC<AccountProps> = ({
     }
   };
 
-  const handleSaveAddress = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newAddr: Address = {
-      ...addressForm as Address,
-      id: `addr-${Date.now()}`
-    };
-    onAddAddress(newAddr);
-    setIsAddingAddress(false);
-    setAddressForm({
-      name: '',
-      zipCode: '',
-      street: '',
-      number: '',
-      complement: '',
-      neighborhood: '',
-      city: '',
-      state: '',
-      type: 'Alternativo'
-    });
-    onNotify("Endereço adicionado com sucesso!");
-  };
+    const handleSaveAddress = async (e: React.FormEvent) => {
+      e.preventDefault();
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+      const { data, error } = await supabase
+        .from('addresses')
+        .insert({
+          user_id: user.id,
+          name: addressForm.name,
+          zip_code: addressForm.zipCode,
+          street: addressForm.street,
+          number: addressForm.number,
+          complement: addressForm.complement,
+          neighborhood: addressForm.neighborhood,
+          city: addressForm.city,
+          state: addressForm.state,
+          type: addressForm.type,
+          is_default: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        onNotify("Erro ao salvar endereço", "error");
+        return;
+      }
+
+      onAddAddress({
+        id: data.id,
+        name: data.name,
+        zipCode: data.zip_code,
+        street: data.street,
+        number: data.number,
+        complement: data.complement,
+        neighborhood: data.neighborhood,
+        city: data.city,
+        state: data.state,
+        type: data.type
+      });
+
+      onNotify("Endereço salvo com sucesso!");
+
+      setAddressForm({
+        name: '',
+        zipCode: '',
+        street: '',
+        number: '',
+        complement: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        type: 'Alternativo'
+      });
+
+      setIsAddingAddress(false);
+    };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!isPasswordFormValid) {
-      if (passwords.current.length === 0) onNotify("Informe sua senha atual.", "error");
-      else if (!areNewPasswordsMatching) onNotify("As novas senhas não coincidem.", "error");
+      if (!areNewPasswordsMatching) onNotify("As novas senhas não coincidem.", "error");
       else if (!isNewPassValid) onNotify("A nova senha deve ter 6+ caracteres.", "error");
       return;
     }
-    onUpdateUser({ password: passwords.new });
+
+    if (!user.email) {
+      onNotify("Erro: email do usuário não encontrado.", "error");
+      return;
+    }
+
+    const { error: loginError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: passwords.current
+    });
+
+    if (loginError) {
+      onNotify("Senha atual incorreta.", "error");
+      return;
+    }
+
+    // 🔄 Atualizar senha
+    const { error } = await supabase.auth.updateUser({
+      password: passwords.new
+    });
+
+    if (error) {
+      onNotify("Erro ao atualizar senha", "error");
+    } else {
+      onNotify("Senha atualizada com sucesso!");
+    }
+
     setPasswords({ current: '', new: '', confirm: '' });
     setTouchedPasswords({ current: false, new: false, confirm: false });
   };
@@ -546,7 +643,7 @@ const Account: React.FC<AccountProps> = ({
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-stone-300 mb-1">Pedido #{selectedOrder.id}</p>
                         <h3 className="text-2xl font-cinzel font-bold text-[#1A1518]">Detalhes da Compra</h3>
-                        <p className="text-sm text-stone-400 mt-2">Realizado em {new Date(selectedOrder.date).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm text-stone-400 mt-2">Realizado em {new Date(selectedOrder.created_at).toLocaleDateString('pt-BR')}</p>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={`px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest ${getStatusColor(selectedOrder.status)}`}>
@@ -566,18 +663,28 @@ const Account: React.FC<AccountProps> = ({
                       <div className="space-y-6">
                         <h4 className="font-cinzel font-bold text-xs uppercase tracking-[0.3em] text-stone-400 border-b border-stone-200 pb-4">Itens</h4>
                         <div className="space-y-4">
-                          {selectedOrder.products.map((item, idx) => (
-                            <div key={idx} className="flex items-center space-x-4">
-                              <div className="w-12 h-16 bg-white rounded-lg overflow-hidden border border-stone-100">
-                                <img src={item.image} className="w-full h-full object-cover" alt={item.name} referrerPolicy="no-referrer" />
+                          {(selectedOrder.order_items || []).map((item, idx) => (
+                              <div key={idx} className="flex items-center space-x-4">
+                                <div className="w-12 h-16 bg-white rounded-lg overflow-hidden border border-stone-100">
+                                  <img 
+                                    src={item.products?.image} 
+                                    className="w-full h-full object-cover" 
+                                    alt={item.products?.name} 
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#1A1518]">
+                                    {item.products?.name}
+                                  </p>
+                                  <p className="text-[10px] text-stone-400">
+                                    {item.quantity}x R$ {item.price_at_time.toFixed(2)}
+                                  </p>
+                                </div>
+                                <p className="text-[10px] font-bold text-[#1A1518]">
+                                  R$ {(item.price_at_time * item.quantity).toFixed(2)}
+                                </p>
                               </div>
-                              <div className="flex-1">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1A1518]">{item.name}</p>
-                                <p className="text-[10px] text-stone-400">{item.quantity}x R$ {item.price.toFixed(2)}</p>
-                              </div>
-                              <p className="text-[10px] font-bold text-[#1A1518]">R$ {(item.price * item.quantity).toFixed(2)}</p>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                         <div className="pt-4 border-t border-stone-200 flex justify-between items-center">
                           <span className="font-cinzel font-bold text-sm">Total</span>
@@ -595,8 +702,19 @@ const Account: React.FC<AccountProps> = ({
                             { s: 'Produto enviado', icon: Truck },
                             { s: 'Entregue', icon: MapPin }
                           ].map((step, idx) => {
-                            const isPast = ['Pagamento em análise', 'Pagamento aprovado', 'Aguardando envio', 'Produto enviado', 'Entregue'].indexOf(step.s) <= ['Pagamento em análise', 'Pagamento aprovado', 'Aguardando envio', 'Produto enviado', 'Entregue'].indexOf(selectedOrder.status);
-                            const isCurrent = step.s === selectedOrder.status;
+                            const statusMap: Record<string, number> = {
+                                  'Pagamento em análise': 0,
+                                  'Pagamento aprovado': 1,
+                                  'Aguardando envio': 2,
+                                  'Produto enviado': 3,
+                                  'Entregue': 4
+                                };
+
+                                const currentStep = statusMap[selectedOrder.status] ?? 0;
+                                const stepIndex = statusMap[step.s] ?? 0;
+
+                                const isPast = stepIndex <= currentStep;
+                                const isCurrent = stepIndex === currentStep;
                             
                             return (
                               <div key={idx} className={`flex items-start space-x-6 relative z-10 ${isPast ? 'opacity-100' : 'opacity-30'}`}>
@@ -625,7 +743,7 @@ const Account: React.FC<AccountProps> = ({
                       {localOrders.map((order) => (
                         <button 
                           key={order.id}
-                          onClick={() => setSelectedOrder(order)}
+                          onClick={() => setSelectedOrder({ ...order })}
                           className="w-full p-8 bg-[#FAF9F6] rounded-[2rem] border border-stone-50 hover:border-[#C082A0]/30 transition-all flex flex-col md:flex-row items-center justify-between group"
                         >
                           <div className="flex items-center space-x-6">

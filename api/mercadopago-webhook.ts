@@ -41,15 +41,20 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: "Sem external_reference" });
     }
 
-    let newStatus = "pending";
+    let newStatus = "Pagamento em análise";
 
     if (status === "approved") newStatus = "Pagamento aprovado";
-    if (status === "rejected") newStatus = "Cancelado";
-    if (status === "cancelled") newStatus = "Cancelado";
+    else if (status === "pending") newStatus = "Pagamento em análise";
+    else if (status === "in_process") newStatus = "Pagamento em análise";
+    else if (status === "rejected") newStatus = "Cancelado";
+    else if (status === "cancelled") newStatus = "Cancelado";
 
     const { error } = await supabase
       .from("orders")
-      .update({ status: newStatus })
+      .update({ 
+          status: newStatus,
+          payment_id: paymentId 
+        })
       .eq("id", orderId);
 
     if (error) {

@@ -288,16 +288,10 @@ const { data: config } = await supabase
       
       // 1. Criar usuário no Auth do Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          data: {
-            name: userData.name,
-            phone: userData.phone,
-            cpf: userData.cpf
-          }
-        }
-      });
+      email: userData.email,
+      password: userData.password,
+      options: { data: { name: userData.name, phone: userData.phone, cpf: userData.cpf } }
+    });
 
       if (authError) {
         notify("Erro no cadastro: " + authError.message, "error");
@@ -330,7 +324,20 @@ const { data: config } = await supabase
         }
       }
 
-      // Se não houver erro de auth, tentamos carregar os dados e ir para home
+      await supabase.from('addresses').insert([{
+        user_id: authData.user.id,
+        name: 'Principal',
+        type: 'Principal',
+        street: userData.street,
+        number: userData.number,
+        complement: userData.complement,
+        neighborhood: userData.neighborhood,
+        city: userData.city,
+        state: userData.state,
+        zip_code: userData.zipCode
+      }]);
+
+      notify("Seja bem-vinda!", "success");
       await fetchData();
       setView('home');
     } catch (e) {

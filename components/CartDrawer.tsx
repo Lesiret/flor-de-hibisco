@@ -26,6 +26,8 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [step, setStep] = useState<'cart' | 'address' | 'payment'>('cart');
   const [user, setUser] = useState<any>(null);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
 
     useEffect(() => {
     const getUser = async () => {
@@ -142,51 +144,48 @@ const validOptions: ShippingOption[] = Array.isArray(data)
     }
   };
 
-      const handleCheckout = async () => {
-      setCheckingOut(true);
-      setError(null);
+        const handleCheckout = async (deliveryInfo?: any) => {
+          setCheckingOut(true);
+          setError(null);
 
-      try {
-        if (!user) {
-          setError("Você precisa estar logado para finalizar a compra.");
-          setCheckingOut(false);
-          return;
-        }
+          try {
+            if (!user) throw new Error("Você precisa estar logado.");
 
-        const selectedAddress = addresses.find(a => a.zipCode === cep);
+            const payload = {
+              items: items.map(item => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+              })),
+              shippingCost: finalShippingCost,
+              coupon,
+              userId: user.id,
+              address: deliveryInfo || addresses.find(a => a.zipCode === cep),
+              recipient_name: deliveryInfo?.recipientName,
+              recipient_phone: deliveryInfo?.recipientPhone
+            };
 
-        const response = await fetch('/api/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            items: items.map(item => ({
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity
-            })),
-            shippingCost: finalShippingCost,
-            coupon: coupon,
-            userId: user.id,
-            address: selectedAddress
-          })
-        });
+            const response = await fetch('/api/checkout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Falha ao iniciar checkout');
-        }
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Falha ao iniciar checkout');
+            }
 
-        const { init_point } = await response.json();
-        window.location.href = init_point;
+            const { init_point } = await response.json();
+            window.location.href = init_point;
 
-      } catch (err: any) {
-        console.error("Erro no Checkout:", err);
-        setError(err.message || "Erro ao processar pagamento.");
-      } finally {
-        setCheckingOut(false);
-      }
-    };
+          } catch (err: any) {
+            setError(err.message || "Erro ao processar pagamento.");
+          } finally {
+            setCheckingOut(false);
+          }
+        };
 
   return (
     <>
@@ -355,6 +354,33 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                   )}
               </div>
 
+              {step === 'recipient' && addresses.length > 0 && (
+                <div className="space-y-4 bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
+                  <h3 className="font-bold text-xs uppercase tracking-widest">Informações do Recebedor</h3>
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Nome do Recebedor"
+                      value={recipientName}
+                      onChange={(e) => setRecipientName(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-stone-200 py-3 px-4 rounded-xl text-xs"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Telefone do Recebedor"
+                      value={recipientPhone}
+                      onChange={(e) => setRecipientPhone(e.target.value)}
+                      className="w-full bg-[#FAF9F6] border border-stone-200 py-3 px-4 rounded-xl text-xs"
+                    />
+                    <div className="p-3 bg-stone-50 rounded-xl text-[9px]">
+                      <p>Endereço:</p>
+                      <p>{addresses.find(a => a.zipCode === cep)?.street}, {addresses.find(a => a.zipCode === cep)?.number}</p>
+                      <p>{addresses.find(a => a.zipCode === cep)?.zipCode} - {addresses.find(a => a.zipCode === cep)?.city}/{addresses.find(a => a.zipCode === cep)?.state}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Totals */}
               <div className="space-y-3">
                 <div className="flex justify-between text-stone-400 text-[10px] font-bold uppercase tracking-widest">
@@ -390,36 +416,20 @@ const validOptions: ShippingOption[] = Array.isArray(data)
               </div>
 
               <button 
-                  onClick={() => {
-                    if (addresses.length === 0) {
-                      alert("Cadastre um endereço antes de continuar.");
+                onClick={() => {
+                  if (step === 'cart') {
+                    if (!selectedOption && !isFreeShipping) {
+                      alert("Calcule o frete antes de continuar.");
                       return;
                     }
-
-                    if (step === 'cart') {
-                      setStep('address'); // abre a etapa de CEP / endereço
-                      return;
-                    }
-
-                    const selectedAddress = addresses.find(a => a.zipCode === cep);
-                    if (!selectedAddress) {
-                      alert("Selecione um endereço válido.");
-                      return;
-                    }
-
-                    handleCheckout(); // só chama checkout depois de selecionar endereço
-                  }}
-                  disabled={(!selectedOption && !isFreeShipping) || checkingOut}
-                  className={`w-full py-5 rounded-full text-[10px] font-bold uppercase tracking-[0.5em] transition-all shadow-xl flex items-center justify-center space-x-4 group ${((!selectedOption && !isFreeShipping) || checkingOut) ? 'bg-stone-100 text-stone-300' : 'bg-[#1A1518] text-white hover:bg-[#C082A0]'}`}
-                >
-                {checkingOut ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Finalizar Compra</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
+                    setStep('recipient'); // Vai para a aba de destinatário
+                  } else {
+                    handleCheckout(); // Vai para o Mercado Pago
+                  }
+                }}
+                className="w-full py-5 bg-[#1A1518] text-white rounded-full text-[10px] font-bold uppercase tracking-[0.5em]"
+              >
+                {step === 'cart' ? 'Próximo' : 'Finalizar Compra'}
               </button>
             </div>
           )}

@@ -63,14 +63,30 @@ export interface Address {
   zipCode: string;
 }
 
+export interface OrderItem {
+  id: string;
+  product_id: string;
+  quantity: number;
+  price_at_time: number;
+  products?: Product;
+}
+
 export interface Order {
   id: string;
   user_id: string; // necessário para filtrar pedidos do usuário
   total: number;
-  status: 'Pagamento em análise' | 'Pagamento aprovado' | 'Aguardando envio' | 'Produto enviado' | 'Entregue' | 'Cancelado';
+  status: 
+    | 'Pagamento em análise'
+    | 'Pagamento aprovado'
+    | 'Aguardando envio'
+    | 'Produto enviado'
+    | 'Entregue'
+    | 'Cancelado';
   tracking_code?: string;
   payment_method: string;
   created_at: string; // usamos esse campo como data do pedido
+
+  order_items?: OrderItem[];
 }
 
 export interface SocialLink {

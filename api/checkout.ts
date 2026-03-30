@@ -1,5 +1,6 @@
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 // 🔒 Supabase (backend seguro)
 const supabase = createClient(
@@ -17,7 +18,22 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { items, shippingCost, coupon, userId } = req.body;
+          const { 
+        items, 
+        shippingCost, 
+        coupon, 
+        userId,
+        recipient_name,
+        recipient_phone,
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        zip_code
+
+      } = req.body;
 
     // 🔒 0. Validação básica
     if (!userId) return res.status(401).json({ error: "Usuário não autenticado" });
@@ -69,7 +85,7 @@ export default async function handler(req: any, res: any) {
           .from("orders")
           .select("id")
           .eq("user_id", userId)
-          .eq("status", "paid")
+          .eq("status", "Pagamento aprovado")
           .limit(1);
 
         if (existingOrders && existingOrders.length > 0) {
@@ -89,7 +105,11 @@ export default async function handler(req: any, res: any) {
     if (discount > subtotal) throw new Error("Desconto inválido");
 
     // 🔒 4. Frete
-    const safeShippingCost = Math.max(Number(shippingCost) || 0, 0);
+    const safeShippingCost = Number(shippingCost);
+
+    if (isNaN(safeShippingCost) || safeShippingCost < 0 || safeShippingCost > 500) {
+      throw new Error("Frete inválido");
+    }
 
     // 🔒 5. Total final
     const total = subtotal - discount + safeShippingCost;
@@ -100,7 +120,22 @@ export default async function handler(req: any, res: any) {
     // 🔥 6. Salvar pedido
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .insert([{ user_id: userId, total, status: "pending", payment_method: "mercadopago" }])
+      .insert([{
+        user_id: userId,
+        total,
+        status: "Pagamento em análise",
+        payment_method: "mercadopago",
+        external_reference: crypto.randomUUID(),
+        recipient_name,
+        recipient_phone,
+        street,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state,
+        zip_code
+      }])
       .select()
       .single();
 
@@ -130,6 +165,7 @@ export default async function handler(req: any, res: any) {
       body: {
         items: adjustedItems,
         external_reference: order.id,
+        notification_url: `${baseUrl}/api/webhook`,
         shipments: { cost: safeShippingCost, mode: "not_specified" },
         back_urls: {
           success: `${baseUrl}/payment-success`,
