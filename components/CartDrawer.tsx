@@ -26,8 +26,23 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, items, shippin
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [step, setStep] = useState<'cart' | 'address' | 'payment'>('cart');
   const [user, setUser] = useState<any>(null);
+  const [showRecipientModal, setShowRecipientModal] = useState(false);
+  const [useProfileAddress, setUseProfileAddress] = useState(true);
+  const [recipient, setRecipient] = useState({
+    name: '',
+    cpf: '',
+    phone: '',
+    street: '',
+    number: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    zip_code: '',
+    complement: ''
+  });
   const [recipientName, setRecipientName] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
+  const [recipientZipCode, setRecipientZipCode] = useState('');
 
     useEffect(() => {
     const getUser = async () => {
@@ -151,6 +166,27 @@ const validOptions: ShippingOption[] = Array.isArray(data)
           try {
             if (!user) throw new Error("Você precisa estar logado.");
 
+            let finalShipping = finalShippingCost;
+
+            // Recalcular frete com o CEP real do recebedor
+            if (recipientZipCode) {
+              try {
+                const response = await fetch('/api/shipping', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    from: shippingConfig.originZipCode.replace(/\D/g, ''),
+                    to: recipientZipCode.replace(/\D/g, ''),
+                    items: items.map(item => ({ id: item.id, quantity: item.quantity }))
+                  })
+                });
+                const data = await response.json();
+                finalShipping = data[0]?.price || finalShipping;
+              } catch (err) {
+                console.error("Erro ao recalcular frete:", err);
+              }
+            }
+
             const payload = {
               items: items.map(item => ({
                 id: item.id,
@@ -158,12 +194,12 @@ const validOptions: ShippingOption[] = Array.isArray(data)
                 price: item.price,
                 quantity: item.quantity
               })),
-              shippingCost: finalShippingCost,
+              shippingCost: finalShipping,
               coupon,
               userId: user.id,
-              address: deliveryInfo || addresses.find(a => a.zipCode === cep),
-              recipient_name: deliveryInfo?.recipientName,
-              recipient_phone: deliveryInfo?.recipientPhone
+              address: recipient, // contém os dados do recebedor
+              recipient_name: recipient.name,
+              recipient_phone: recipient.phone
             };
 
             const response = await fetch('/api/checkout', {
@@ -186,6 +222,67 @@ const validOptions: ShippingOption[] = Array.isArray(data)
             setCheckingOut(false);
           }
         };
+
+        {showRecipientModal && (
+  <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="bg-white p-8 rounded-2xl w-full max-w-md relative">
+      <button 
+        onClick={() => setShowRecipientModal(false)}
+        className="absolute top-4 right-4 text-stone-400 hover:text-[#1A1518]"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
+      <h3 className="font-bold text-xs uppercase tracking-widest mb-4">Informações do Recebedor</h3>
+      
+      <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="Nome do Recebedor"
+          value={recipientName}
+          onChange={(e) => setRecipientName(e.target.value)}
+          className="w-full bg-[#FAF9F6] border border-stone-200 py-3 px-4 rounded-xl text-xs"
+        />
+        <input
+          type="text"
+          placeholder="Telefone do Recebedor"
+          value={recipientPhone}
+          onChange={(e) => setRecipientPhone(e.target.value)}
+          className="w-full bg-[#FAF9F6] border border-stone-200 py-3 px-4 rounded-xl text-xs"
+        />
+
+        <div className="p-3 bg-stone-50 rounded-xl text-[9px]">
+          <p>Endereço:</p>
+          <p>{addresses.find(a => a.zipCode === cep)?.street}, {addresses.find(a => a.zipCode === cep)?.number}</p>
+          <p>{addresses.find(a => a.zipCode === cep)?.zipCode} - {addresses.find(a => a.zipCode === cep)?.city}/{addresses.find(a => a.zipCode === cep)?.state}</p>
+        </div>
+
+        <button
+          onClick={() => {
+            if (!recipientName || !recipientPhone) {
+              alert("Preencha nome e telefone do recebedor.");
+              return;
+            }
+            setShowRecipientModal(false);
+            setRecipient({
+              ...recipient,
+              name: recipientName,
+              phone: recipientPhone,
+              zip_code: cep,
+              address: addresses.find(a => a.zipCode === cep)
+            });
+            setRecipientZipCode(cep); // guarda o CEP real do recebedor
+            setShowRecipientModal(false);
+            handleCheckout(); // agora usa o CEP real para cálculo final
+           }}
+          className="w-full py-3 bg-[#1A1518] text-white rounded-full text-[10px] font-bold uppercase tracking-[0.5em]"
+        >
+          Continuar para Pagamento
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
   return (
     <>
@@ -417,19 +514,15 @@ const validOptions: ShippingOption[] = Array.isArray(data)
 
               <button 
                 onClick={() => {
-                  if (step === 'cart') {
-                    if (!selectedOption && !isFreeShipping) {
-                      alert("Calcule o frete antes de continuar.");
-                      return;
-                    }
-                    setStep('recipient'); // Vai para a aba de destinatário
-                  } else {
-                    handleCheckout(); // Vai para o Mercado Pago
+                  if (!selectedOption && !isFreeShipping) {
+                    alert("Calcule o frete antes de continuar.");
+                    return;
                   }
+                  setShowRecipientModal(true);
                 }}
                 className="w-full py-5 bg-[#1A1518] text-white rounded-full text-[10px] font-bold uppercase tracking-[0.5em]"
               >
-                {step === 'cart' ? 'Próximo' : 'Finalizar Compra'}
+                Finalizar Compra
               </button>
             </div>
           )}
